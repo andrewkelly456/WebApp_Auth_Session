@@ -1,0 +1,26 @@
+{
+  "name": "webapp_auth_session",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000W\u0000e\u0000b\u0000_\u0000A\u0000p\u0000p\u0000_\u0000A\u0000u\u0000t\u0000h\u0000_\u0000S\u0000e\u0000s\u0000s\u0000i\u0000o\u0000n\u0000 \u0000\r\u0000 \u0000",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewkelly456/WebApp_Auth_Session.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/andrewkelly456/WebApp_Auth_Session/issues"
+  },
+  "homepage": "https://github.com/andrewkelly456/WebApp_Auth_Session#readme",
+  "dependencies": {
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "mysql2": "^3.24.6"
+  }
+}
