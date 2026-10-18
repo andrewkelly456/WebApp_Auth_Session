@@ -51,3 +51,57 @@ Hash passwords with bcrypt/Argon2 before storing; never store or log raw passwor
 
 **Fix (not yet applied in this app):**
 Replace sequential token generation with `crypto.randomBytes(32).toString('hex')` or equivalent cryptographically secure random generation. 
+
+## Attack #3: Session Cookie Theft via Missing HttpOnly Flag
+
+**Target vulnerability:** VULN-03 (Missing Cookie Security Flags) - see VULNERABILITIES.md
+
+**Date:** 2026-10-19
+
+**Setup:**
+- Logged in normally through `http://localhost:3000/login.html` to obtain a valid session cookie.
+- Confirmed via DevTools (Application -> Cookies) that `session_token` has no `HttpOnly`, `Secure` or `SameSite` attributes set.
+
+**Attack steps:**
+1. Opened the browser DevTools Console on the application's own page (simulating any script that manages to execute on the page - e.g. via an XSS bug elsewhere, a malicious browser extension, or a compromised third-party script/ad; no actual injection vulnerability was built, since that is outside this project's auth/session-only scope).
+2. Ran `document.cookie` in the console - the full session token was returned directly as a plain string, proving client-side script has unrestricted read access to it.
+3. Extracted the token value from the output.
+4. Replayed it from a separate terminal via `curl.exe -s -b "session_token=<stolen_value>" http://localhost:3000/api/account`
+5. Received the full account data back, confirming the stolen token grants complete session hijacking - identical impact to Attack #2, via a different theft method. 
+
+**Result:** Full session hijacking achieved purely by reading `document.cookie`, with zero network interception or server-side access required.
+
+**Impact:**
+- Any script execution on the page (XSS, malicious extension, compromised dependency) immediately compromises every logged-in user's session
+- Demonstrates that fixing VULN-02 (random tokens) alone would not be sufficient - a long random token is just as readable via `document.cookie` as a predictable one if `HttpOnly` is not set
+- Missing `Secure` and `SameSite` represent additional, separate exposure (network interception and cross-site request riding, respectively) not directly exercised in this attack
+
+**Fix (not yet applied in this app):**
+Set `httpOnly: true`, `secure: true` and `sameSite: 'strict'` on the cookie at creation time.
+
+## Attack #4: Session Reuse After Logout
+
+**Target vulnerability:** VULN-04 (Logout Does Not Invalidate Session Server-Side) - see VULNERABILITIES.md
+
+**Date:** 2026-10-19
+
+**Setup:**
+- Logged in normally, capturing the active `session_token` value via `document.cookie` before taking any further action.
+
+**Attack steps:**
+1. Captured the session token (`sess_7_20`) immediately after login, while it was still a legitimate, actively-used session.
+2. Clicked **Logout** on `account.html`. Confirmed via DevTools that the `session_token` cookie was removed from the browser.
+3. From a separate terminal, replayed the captured (pre-logout) token:
+`curl.exe -s -b "session_token=sess_7_20" http://localhost:3000/api/account`
+4. Received the full account data back - identical to a legitimately logged in request - despite the UI confirming logout had succeeded.
+5. Queried the database directly (`SELECT * FROM sessions WHERE session_token = 'sess_7_20'`) and confirmed the row was still present, completely untouched by the logout action.
+
+**Result:** A token captured before logout remains fully exploitable indefinitely after the user believes they have logged out, with no server-side invalidation ever occurring.
+
+**Impact:**
+- Any prior session theft (via VULN-02 guessing or VULN-03 cookie theft) remains exploitable forever, even after the legitimate user logs out - logout provides a false sense of security with no actual protection
+- Compounds every other session vulnerability in this app; there is currently no mechanism anywhere that ever removes a session once created
+
+**Fix (not yet applied in this app):**
+Delete the corresponding `sessions` row on logout
+(`DELETE FROM sessions WHERE session_token = ?`), not just the client-side cookie. 

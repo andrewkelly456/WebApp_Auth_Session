@@ -34,3 +34,39 @@ CWE-384 (Session Fixation family)
 Generate session tokens using a cryptographically secure random value (e.g. Node's `crypto.randomBytes(32).toString('hex')`), long enough and random enough that guessing is computationally infeasible. Never derive tokens from predictable data like counters, timestamps, or user IDs.
 
 **Status:** Exploited - see ATTACK_LOG.md, Attack #2.
+
+## VULN-03: Missing Cookie Security Flags (HttpOnly, Secure, SameSite)
+
+**Location:** `routes/auth.js` - `POST /api/login` (`res.cookie('session_token', sessionToken)`)
+
+**Description:**
+The session cookie is set with no additional attributes at all. It is missing `HttpOnly` (so client-side JavaScript can read it directly via `document.cookie`), `Secure` (so it would be transmitted even over plain unencrypted HTTP) and `SameSite` (so it may be sent along with cross-site requests).
+
+**Why it's dangerous:**
+Without `HttpOnly`, any JavaScript that manages to execute on the page - via an XSS vulnerability elsewhere, a malicious browser extension, a compromised third-party script/ad, etc. - can read the session token directly out of `document.cookie` and exfiltrate it to an attacker, leading immediately to full session hijacking (identical impact to VULN-02's exploitation step, just a different theft method). Without `Secure`, the token could be intercepted in transit on an unencrypted network. Without `SameSite`, the cookie may ride along on requests triggered by a malicious third-party site, enabling CSRF-style abuse.
+
+**CWE Reference:** CWE-1004 (Sensitive Cookie Without 'HttpOnly' Flag), CWE-614 (Sensitive Cookie Without 'Secure' Flag)
+
+**Real-world fix:**
+Set all three flags when issuing the cookie, e.g.:
+`res.cookie('session_token', sessionToken, { httpOnly: true, secure: true, sameSite: 'strict' })` (`secure: true` requires serving over HTTPS, which should be the norm in production).
+
+**Status:** Exploited - see ATTACK_LOG.md, Attack #3. 
+
+## VULN-04: Logout Does Not Invalidate Session Server-Side
+
+**Location:** `routes/auth.js` - `POST /api/logout`
+
+**Description:**
+The logout endpoint only calls `res.clearCookie('session_token')`, which removes the cookie from the client's browser. It never deletes or invalidates the corresponding row in the `sessions` table on the server.
+
+**Why it's dangerous:**
+The session token itself remains fully valid indefinitely after "logout." Anyone holding a copy of that token - captured before logout via any of the methods demonstrated in VULN-02/VULN-03 (guessing, cookie theft via missing HttpOnly, network interception, etc.) - can continue using it to impersonate the user with zero indication to the real user that their session is still active and exploitable. The UI shows "logged out", but server-side nothing changed at all.
+
+**CWE Reference:** CWE-613 (Insufficient Session Expiration)
+
+**Real-world fix:**
+On logout, delete the matching row from the `sessions` table 
+(`DELETE FROM sessions WHERE session_token = ?`) in addition to clearing the cookie, so the token is rejected by `requireSession` immediately afterward.
+
+**Status:** Exploited - see ATTACK_LOG.md, Attack #4

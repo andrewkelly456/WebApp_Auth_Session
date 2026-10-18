@@ -60,4 +60,11 @@ router.post('/login', async (req, res) => {
     }
 });
 
+//Logout - vulnerability #4 (intentional): only clears the cookie client-side,
+//never deletes the session record server-side
+router.post('/logout', (req, res) => {
+    res.clearCookie('session_token');
+    res.json({ message: 'Logged out successfully' });
+});
+
 module.exports = router;
