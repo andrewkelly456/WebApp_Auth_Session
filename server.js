@@ -5,6 +5,7 @@ const app = express();
 const db = require('./config/db');
 const authRoutes = require('./routes/auth');
 app.use(express.json());
+app.use(express.static('public'));
 
 app.get('/api/ping', (req, res) => {
     res.json({ message: 'pong' });
