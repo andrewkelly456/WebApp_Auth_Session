@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/andrewkelly456/WebApp_Auth_Session#readme",
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "dotenv": "^18.0.8",
     "express": "^5.3.0",
     "mysql2": "^3.24.6"

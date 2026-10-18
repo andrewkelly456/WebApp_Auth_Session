@@ -43,6 +43,17 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({error: 'Invalid username or password' });
         }
 
+        //Vulnerability #2 (intentional): predicatble, sequential session tokens
+        const [countRows] = await db.query('SELECT COUNT(*) AS count FROM sessions');
+        const sessionNumber = countRows[0].count + 1;
+        const sessionToken = `sess_${user.id}_${sessionNumber}`;
+
+        await db.query(
+            'INSERT INTO sessions (session_token, user_id) VALUES (?, ?)',
+            [sessionToken, user.id]
+        );
+
+        res.cookie('session_token', sessionToken);
         res.json({ message: 'Login successful', userId: user.id, username: user.username });
     } catch (err) {
         res.status(500).json({ error: err.message });

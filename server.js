@@ -1,11 +1,15 @@
 require('dotenv').config();
 const express = require('express');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const db = require('./config/db');
 const authRoutes = require('./routes/auth');
+const accountRoutes = require('./routes/account');
 app.use(express.json());
 app.use(express.static('public'));
+app.use(cookieParser());
+app.use('/api', accountRoutes);
 
 app.get('/api/ping', (req, res) => {
     res.json({ message: 'pong' });
